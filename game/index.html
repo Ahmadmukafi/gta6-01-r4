@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DUSTLINE — a desert getaway</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #1a120c;
+    font-family: Georgia, 'Times New Roman', serif; color: #f5ead2; }
+  #game { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #top-left { position: absolute; top: 14px; left: 16px; text-shadow: 0 2px 4px rgba(0,0,0,.7); }
+  #cash { font-size: 30px; font-weight: bold; color: #ffe14d; letter-spacing: 1px; }
+  #stars { font-size: 26px; letter-spacing: 4px; margin-top: 2px; }
+  #health { font-size: 13px; color: #e8dcc0; margin-top: 4px; letter-spacing: 1px; }
+  #top-right { position: absolute; top: 14px; right: 16px; text-align: right; }
+  #minimap { border: 2px solid rgba(245, 234, 210, .55); border-radius: 6px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.55); background: #241a10; }
+  #speed { font-size: 26px; font-weight: bold; color: #fff; margin-top: 6px;
+    text-shadow: 0 2px 4px rgba(0,0,0,.8); }
+  #dust { font-size: 14px; color: #ffcf8a; margin-top: 2px; letter-spacing: 1px;
+    text-shadow: 0 2px 4px rgba(0,0,0,.8); }
+  #objective { position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%);
+    font-size: 17px; font-weight: bold; color: #ffe9b0; text-align: center;
+    text-shadow: 0 2px 6px rgba(0,0,0,.85); letter-spacing: .5px; max-width: 80%; }
+  #message { position: absolute; left: 50%; top: 22%; transform: translateX(-50%);
+    width: 640px; max-width: 86%; font-size: 19px; font-style: italic; line-height: 1.45;
+    color: #fff3d6; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,.9);
+    background: rgba(20, 12, 6, .45); border-radius: 10px; padding: 12px 18px;
+    transition: opacity .6s; opacity: 0; }
+  #hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    font-size: 13px; color: rgba(245, 234, 210, .75); letter-spacing: .5px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.8); white-space: nowrap; }
+  #toast { position: absolute; left: 50%; top: 58px; transform: translateX(-50%);
+    font-size: 16px; font-weight: bold; color: #ffe14d; text-shadow: 0 2px 5px rgba(0,0,0,.9);
+    opacity: 0; transition: opacity .4s; }
+  #storm-veil { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(214,150,70,.12) 0%, rgba(190,120,50,.5) 100%);
+    transition: opacity .8s; }
+  #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 4; opacity: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(120,0,0,.55) 100%);
+    transition: opacity .5s; }
+  .overlay { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    background: linear-gradient(180deg, rgba(40,20,8,.82), rgba(20,10,4,.88)); }
+  .overlay h1 { font-size: 64px; margin: 0; letter-spacing: 8px; color: #ffb347;
+    text-shadow: 0 4px 0 #7a3b12, 0 8px 24px rgba(0,0,0,.8); }
+  .overlay h2 { font-size: 20px; font-weight: normal; font-style: italic; color: #ffe9b0;
+    margin: 10px 0 26px; max-width: 560px; line-height: 1.5; }
+  .overlay p { font-size: 15px; color: #d8c9a8; max-width: 600px; line-height: 1.6; margin: 6px 0; }
+  .overlay button { pointer-events: auto; margin-top: 26px; font-family: inherit; font-size: 20px;
+    font-weight: bold; letter-spacing: 2px; color: #201408; background: #ffb347;
+    border: none; border-radius: 8px; padding: 14px 42px; cursor: pointer;
+    box-shadow: 0 6px 0 #a35a14, 0 10px 24px rgba(0,0,0,.6); }
+  .overlay button:hover { background: #ffc46b; }
+  .overlay button:active { transform: translateY(3px); box-shadow: 0 3px 0 #a35a14; }
+  #pause { display: none; }
+  #pause h1 { font-size: 44px; }
+  #end { display: none; }
+  kbd { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.35);
+    border-radius: 4px; padding: 1px 6px; font-family: inherit; font-size: 12px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="storm-veil"></div>
+<div id="vignette"></div>
+<div id="hud">
+  <div id="top-left">
+    <div id="cash">$0</div>
+    <div id="stars">☆☆☆☆☆</div>
+    <div id="health">HEALTH 100</div>
+  </div>
+  <div id="top-right">
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div id="speed"></div>
+    <div id="dust"></div>
+  </div>
+  <div id="toast"></div>
+  <div id="message"></div>
+  <div id="objective"></div>
+  <div id="hint"><kbd>W A S D</kbd> move / drive &nbsp; <kbd>Shift</kbd> run &nbsp; <kbd>E</kbd> steal car &nbsp; <kbd>Q</kbd> dust kick &nbsp; <kbd>Space</kbd> handbrake &nbsp; <kbd>Click</kbd> shoot &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>M</kbd> mute</div>
+</div>
+<div id="menu" class="overlay">
+  <h1 id="menu-title">DUSTLINE</h1>
+  <h2 id="menu-sub">A sun-baked desert town. One getaway driver. Five jobs. The storm is coming.</h2>
+  <p>You are <b>Rook</b>, the best wheelman in Dustline City. Marisol the fixer has five jobs
+  for you — pickups, a highway run, a casino heist, and one last escape through the sandstorm.</p>
+  <p>Drive, steal cars, lose the sheriff. When the heat is on, kick dust in their faces
+  with <kbd>Q</kbd> — or vanish inside the storm itself.</p>
+  <p>Progress saves automatically. Good luck, Rook.</p>
+  <button id="menu-btn">START ENGINE</button>
+</div>
+<div id="pause" class="overlay">
+  <h1>PAUSED</h1>
+  <h2>Take a breath, Rook. The desert waits.</h2>
+  <button id="pause-btn" onclick="document.getElementById('pause').style.display='none'">BACK TO THE ROAD</button>
+</div>
+<div id="end" class="overlay">
+  <h1 id="end-title">BUSTED</h1>
+  <h2 id="end-sub"></h2>
+  <button id="end-btn">TRY AGAIN</button>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
